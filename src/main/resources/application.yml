@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: framingham-risk-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/framingham}
+    username: ${DB_USERNAME:framingham}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

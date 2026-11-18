@@ -1,0 +1,30 @@
+### Swagger UI: http://localhost:8080/swagger-ui.html
+### Save a synthetic case
+POST http://localhost:8080/api/cases
+Content-Type: application/json
+
+{
+  "male": 1,
+  "age": 48,
+  "education": 2,
+  "currentSmoker": 0,
+  "cigsPerDay": 0,
+  "BPMeds": 0,
+  "prevalentStroke": 0,
+  "prevalentHyp": 0,
+  "diabetes": 0,
+  "totChol": 210.0,
+  "sysBP": 125.0,
+  "diaBP": 82.0,
+  "BMI": 27.3,
+  "heartRate": 71.0,
+  "glucose": 91.0
+}
+
+### List records
+GET http://localhost:8080/api/cases
+
+### Health
+GET http://localhost:8080/actuator/health
+
+### POST /api/predictions requires a real trained model and currently returns HTTP 503

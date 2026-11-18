@@ -1,0 +1,4 @@
+# Local profile. This project intentionally never hardcodes credentials.
+logging:
+  level:
+    hu.framingham: DEBUG
