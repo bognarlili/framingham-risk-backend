@@ -56,6 +56,13 @@ Packages: `controller`, `dto`, `entity`, `repository`, `service`, `mapper`,
 5. API examples: see `http/examples.http`.
 6. Cleanup: `docker compose down` (preserves data in volume).
 
+**Frontend (Nginx):** the `frontend` service is built from the sibling repository
+`../framingham-risk-frontend` and served on `http://localhost:8090`. Nginx serves the
+static files and forwards `/api/*` to the backend, so the browser talks to one origin and
+no CORS configuration is needed. With the backend running from IntelliJ instead, set
+`FRONTEND_BACKEND_URL=http://host.docker.internal:8082` in `.env` and start only the
+frontend: `docker compose up -d --build --no-deps frontend`.
+
 The backend is bound to `127.0.0.1:8080` by default so it is NOT automatically
 public. Before publicly exposing it, add authentication/access controls and
 restrict/disable admin surfaces such as Swagger where appropriate.

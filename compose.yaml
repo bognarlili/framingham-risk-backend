@@ -39,6 +39,20 @@ services:
         condition: service_healthy
     networks: [ internal ]
 
+  frontend:
+    build: ../framingham-risk-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:80"
+    environment:
+      BACKEND_URL: ${FRONTEND_BACKEND_URL:-http://backend:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [ internal ]
+
 networks:
   internal:
 
