@@ -3,6 +3,8 @@ services:
   database:
     image: postgres:16.10-alpine
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: framingham
       POSTGRES_USER: framingham
@@ -10,24 +12,24 @@ services:
     volumes:
       - framingham_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U framingham -d framingham"]
+      test: [ "CMD-SHELL", "pg_isready -U framingham -d framingham" ]
       interval: 5s
       timeout: 3s
       retries: 10
-    networks: [internal]
+    networks: [ internal ]
 
   backend:
     build: .
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8080"
     environment:
       SPRING_PROFILES_ACTIVE: local
       DB_URL: jdbc:postgresql://database:5432/framingham
       DB_USERNAME: framingham
       DB_PASSWORD: ${DB_PASSWORD:?Create a .env file with DB_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -35,7 +37,7 @@ services:
     depends_on:
       database:
         condition: service_healthy
-    networks: [internal]
+    networks: [ internal ]
 
 networks:
   internal:
