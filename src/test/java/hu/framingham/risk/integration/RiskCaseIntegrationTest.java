@@ -39,7 +39,7 @@ class RiskCaseIntegrationTest {
     @Test
     void createReadAndListWithRealPostgres() throws Exception {
         RiskCaseRequest request = new RiskCaseRequest(1, 48, 2, 0, 0, 0, 0, 0, 0,
-                210.0, 125.0, 82.0, 27.3, 71.0, 91.0);
+                5.4, 125.0, 82.0, 27.3, 71.0, 5.1);
         String saved = mvc.perform(post("/api/cases").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -50,7 +50,7 @@ class RiskCaseIntegrationTest {
         mvc.perform(get("/api/cases/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(id)))
-                .andExpect(jsonPath("$.totChol", is(210.0)));
+                .andExpect(jsonPath("$.totChol", is(5.4)));
         mvc.perform(get("/api/cases"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(1)));

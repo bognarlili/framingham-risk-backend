@@ -1,5 +1,5 @@
 ### Swagger UI: http://localhost:8080/swagger-ui.html
-### Save a synthetic case
+### Save a synthetic case (totChol and glucose in mmol/L)
 POST http://localhost:8080/api/cases
 Content-Type: application/json
 
@@ -13,12 +13,12 @@ Content-Type: application/json
   "prevalentStroke": 0,
   "prevalentHyp": 0,
   "diabetes": 0,
-  "totChol": 210.0,
+  "totChol": 5.4,
   "sysBP": 125.0,
   "diaBP": 82.0,
   "BMI": 27.3,
   "heartRate": 71.0,
-  "glucose": 91.0
+  "glucose": 5.1
 }
 
 ### List records

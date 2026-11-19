@@ -19,6 +19,9 @@ unit tests and a PostgreSQL Testcontainers integration test. No internal/corpora
 - Database schema is versioned with Flyway; Hibernate checks it with `ddl-auto=validate`.
 
 **Important:** public JSON field names match the 15 input features in the research dataset (including `BPMeds`, `BMI`, `sysBP`, `diaBP`).
+**Units:** `totChol` and `glucose` are sent and stored in **mmol/L** (upper bounds 20 and 40
+reject values entered in mg/dL). They are converted to the dataset's mg/dL only when model
+features are built (`RiskCaseMapper.toFeatures`, factors 38.67 and 18.016).
 Null predictor values represent missing source values. Imputation, one-hot encoding,
 standardization, model export and calibration are NOT implemented. Model inference
 must not be enabled until Python-to-Java parity has been tested.
@@ -82,7 +85,7 @@ builder image directly and do not need a wrapper.
 ```bash
 curl -X POST http://localhost:8080/api/cases \
   -H 'Content-Type: application/json' \
-  -d '{"male":1,"age":48,"education":2,"currentSmoker":0,"cigsPerDay":0,"BPMeds":0,"prevalentStroke":0,"prevalentHyp":0,"diabetes":0,"totChol":210.0,"sysBP":125.0,"diaBP":82.0,"BMI":27.3,"heartRate":71.0,"glucose":91.0}'
+  -d '{"male":1,"age":48,"education":2,"currentSmoker":0,"cigsPerDay":0,"BPMeds":0,"prevalentStroke":0,"prevalentHyp":0,"diabetes":0,"totChol":5.4,"sysBP":125.0,"diaBP":82.0,"BMI":27.3,"heartRate":71.0,"glucose":5.1}'
 ```
 
 Successful response: `201 Created` with an `id`; then `GET /api/cases/{id}`.
