@@ -9,6 +9,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class UnavailablePredictionEngine implements PredictionEngine {
     @Override
+    public boolean isAvailable(String modelKey) {
+        return false;
+    }
+
+    @Override
     public PredictionResult predict(String modelKey, RiskFeatures features) {
         throw new ModelUnavailableException(
                 "No validated model is configured. Export and verify the Python preprocessing pipeline first.");

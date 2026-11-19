@@ -12,7 +12,11 @@ unit tests and a PostgreSQL Testcontainers integration test. No internal/corpora
 - `GET /api/cases` lists saved cases (paginated).
 - `GET /api/cases/{id}` reads one saved case.
 - `GET /api/predictions` lists only **real** saved predictions (empty initially).
-- `GET /api/predictions/{id}` reads one saved prediction, if present.
+- `POST /api/assessments` (for the frontend) takes the same body as `POST /api/cases`,
+  saves the case and then tries the prediction in one call. It always answers `201`;
+  `modelStatus` is `AVAILABLE` (with `probability` and `summary`) or `UNAVAILABLE`
+  (case saved, `probability` null, Hungarian `message`). Optional `?modelKey=`
+  (default `logistic-regression-full`).
 - `POST /api/predictions` loads a case, then calls `PredictionEngine`.
   The default implementation deliberately returns **HTTP 503** because no validated
   model has been installed. It never fabricates a clinical risk percentage.

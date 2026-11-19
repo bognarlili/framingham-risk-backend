@@ -8,11 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.net.URI;
 import java.util.UUID;
 
 @RestController
@@ -22,14 +20,9 @@ public class RiskCaseController {
     private final RiskCaseService service;
 
     @PostMapping
-    public ResponseEntity<RiskCaseResponse> create(@Valid @RequestBody RiskCaseRequest request) {
-        RiskCaseResponse saved = this.service.create(request);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequestUri()
-                                                  .path("/{id}")
-                                                  .buildAndExpand(saved.id())
-                                                  .toUri();
-        return ResponseEntity.created(location)
-                             .body(saved);
+    @ResponseStatus(HttpStatus.CREATED)
+    public RiskCaseResponse create(@Valid @RequestBody RiskCaseRequest request) {
+        return this.service.create(request);
     }
 
     @GetMapping
