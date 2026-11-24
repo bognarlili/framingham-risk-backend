@@ -1,10 +1,11 @@
 package hu.framingham.risk.service;
 
-import hu.framingham.risk.dto.request.PredictionRequest;
 import hu.framingham.risk.dto.request.RiskCaseRequest;
 import hu.framingham.risk.dto.response.AssessmentResponse;
-import hu.framingham.risk.dto.response.PredictionResponse;
+import hu.framingham.risk.entity.RiskCaseEntity;
+import hu.framingham.risk.mapper.RiskCaseMapper;
 import hu.framingham.risk.ml.engine.PredictionEngine;
+import hu.framingham.risk.ml.model.PredictionResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,25 +13,26 @@ import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Saves the case and then predicts if a model is available. Deliberately NOT transactional:
- * the case is committed by its own service and stays saved whatever happens afterwards. */
+/** Estimates the risk; for a logged-in user the case and result also go into their journal. */
 @Service
 @RequiredArgsConstructor
 public class AssessmentService {
-    private static final String MODEL_UNAVAILABLE_MESSAGE =
-            "Az adatokat elmentettük. A becsléshez még nincs validált modell bekötve.";
+    private static final String MODEL_UNAVAILABLE_MESSAGE = "A kiválasztott modell nem érhető el.";
 
-    private final RiskCaseService riskCaseService;
+    private final RiskCaseMapper riskCaseMapper;
     private final PredictionService predictionService;
+    private final JournalService journalService;
     private final PredictionEngine predictionEngine;
 
-    public AssessmentResponse assess(RiskCaseRequest request, String modelKey) {
-        UUID caseId = this.riskCaseService.create(request).id();
+    /** @param ownerId the logged-in user's id, or null for a guest (nothing is saved) */
+    public AssessmentResponse assess(RiskCaseRequest request, String modelKey, String ownerId) {
         if (!this.predictionEngine.isAvailable(modelKey)) {
-            return AssessmentResponse.unavailable(caseId, modelKey, MODEL_UNAVAILABLE_MESSAGE);
+            return AssessmentResponse.unavailable(modelKey, MODEL_UNAVAILABLE_MESSAGE);
         }
-        PredictionResponse prediction = this.predictionService.create(new PredictionRequest(caseId, modelKey));
-        return AssessmentResponse.available(caseId, prediction, summary(prediction.probability()));
+        RiskCaseEntity riskCase = this.riskCaseMapper.toEntity(request);
+        PredictionResult result = this.predictionService.predict(riskCase, modelKey);
+        UUID entryId = ownerId == null ? null : this.journalService.save(ownerId, riskCase, modelKey, result);
+        return AssessmentResponse.available(entryId, modelKey, result, summary(result.probability()));
     }
 
     private static String summary(double probability) {

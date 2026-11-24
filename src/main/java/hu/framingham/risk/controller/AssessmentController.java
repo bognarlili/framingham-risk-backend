@@ -6,13 +6,14 @@ import hu.framingham.risk.service.AssessmentService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Single call for the frontend: same body as POST /api/cases (lab values in mmol/L).
- * Always 201 because the case is saved; check {@code modelStatus} for the prediction.
+ * Risk estimate for the frontend (lab values in mmol/L). Open to guests; with a valid access
+ * token the result is also saved to the user's journal ({@code saved = true}).
  */
 @RestController
 @RequestMapping("/api/assessments")
@@ -22,9 +23,9 @@ public class AssessmentController {
     private final AssessmentService service;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     public AssessmentResponse assess(@Valid @RequestBody RiskCaseRequest request,
-            @RequestParam(defaultValue = "logistic-regression-full") @Size(max = 64) String modelKey) {
-        return this.service.assess(request, modelKey);
+            @RequestParam(defaultValue = "logistic-regression-full") @Size(max = 64) String modelKey,
+            @AuthenticationPrincipal Jwt user) {
+        return this.service.assess(request, modelKey, user == null ? null : user.getSubject());
     }
 }

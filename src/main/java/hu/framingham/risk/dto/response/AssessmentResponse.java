@@ -1,18 +1,19 @@
 package hu.framingham.risk.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import hu.framingham.risk.ml.model.PredictionResult;
 
 import java.util.Map;
 import java.util.UUID;
 
-/** One-call result for the frontend: the case is always saved; the prediction part is
- * filled only when a model is available ({@code modelStatus = AVAILABLE}), otherwise
- * {@code message} explains why. Empty fields are left out of the JSON.
+/** Result of one assessment. Logged-in users get it saved to their journal ({@code saved},
+ * {@code entryId}); guests only get the result. If the model is unavailable, {@code message}
+ * explains why. Empty fields are left out of the JSON.
  * {@code probability} is in [0, 1]; {@code contributions} are log-odds per input feature. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AssessmentResponse(
-        UUID caseId,
-        UUID predictionId,
+        UUID entryId,
+        boolean saved,
         ModelStatus modelStatus,
         String model,
         Double probability,
@@ -22,13 +23,14 @@ public record AssessmentResponse(
 ) {
     public enum ModelStatus { AVAILABLE, UNAVAILABLE }
 
-    public static AssessmentResponse available(UUID caseId, PredictionResponse prediction, String summary) {
-        return new AssessmentResponse(caseId, prediction.id(), ModelStatus.AVAILABLE, prediction.modelKey(),
-                                      prediction.probability(), summary, prediction.contributions(), null);
+    /** @param entryId the journal entry, or null for a guest (nothing saved) */
+    public static AssessmentResponse available(UUID entryId, String modelKey, PredictionResult result,
+                                               String summary) {
+        return new AssessmentResponse(entryId, entryId != null, ModelStatus.AVAILABLE, modelKey,
+                                      result.probability(), summary, result.contributions(), null);
     }
 
-    public static AssessmentResponse unavailable(UUID caseId, String modelKey, String message) {
-        return new AssessmentResponse(caseId, null, ModelStatus.UNAVAILABLE, modelKey,
-                                      null, null, null, message);
+    public static AssessmentResponse unavailable(String modelKey, String message) {
+        return new AssessmentResponse(null, false, ModelStatus.UNAVAILABLE, modelKey, null, null, null, message);
     }
 }
