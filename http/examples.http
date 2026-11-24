@@ -49,4 +49,8 @@ GET http://localhost:8080/api/cases
 ### Health
 GET http://localhost:8080/actuator/health
 
-### POST /api/predictions requires a real trained model and currently returns HTTP 503
+### POST /api/predictions: replace caseId with an id returned by POST /api/cases
+POST http://localhost:8080/api/predictions
+Content-Type: application/json
+
+{"caseId": "00000000-0000-0000-0000-000000000000", "modelKey": "logistic-regression-full"}

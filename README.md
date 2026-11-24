@@ -4,38 +4,37 @@
 
 Standalone Java 21 + Spring Boot 3.5 backend with three-layer REST API, PostgreSQL,
 Flyway, MapStruct, validation, standardized errors, Actuator, Swagger UI,
-unit tests and a PostgreSQL Testcontainers integration test. No internal/corporate artifacts.
+ONNX Runtime inference and unit tests. No internal/corporate artifacts.
 
 ## What works now
 
 - `POST /api/cases` saves a synthetic Framingham feature set.
 - `GET /api/cases` lists saved cases (paginated).
 - `GET /api/cases/{id}` reads one saved case.
-- `GET /api/predictions` lists only **real** saved predictions (empty initially).
+- `GET /api/predictions` lists saved predictions.
 - `POST /api/assessments` (for the frontend) takes the same body as `POST /api/cases`,
   saves the case and then tries the prediction in one call. It always answers `201`;
   `modelStatus` is `AVAILABLE` (with `probability` and `summary`) or `UNAVAILABLE`
   (case saved, `probability` null, Hungarian `message`). Optional `?modelKey=`
   (default `logistic-regression-full`).
-- `POST /api/predictions` loads a case, then calls `PredictionEngine`.
-  The default implementation deliberately returns **HTTP 503** because no validated
-  model has been installed. It never fabricates a clinical risk percentage.
+- `POST /api/predictions` loads a case, runs the requested model and saves the result.
+  Models: `logistic-regression-full` (15 features) and `logistic-regression-reduced`
+  (without `totChol` and `glucose`). An unknown `modelKey` answers **HTTP 503**.
 - Database schema is versioned with Flyway; Hibernate checks it with `ddl-auto=validate`.
 
 **Important:** public JSON field names match the 15 input features in the research dataset (including `BPMeds`, `BMI`, `sysBP`, `diaBP`).
 **Units:** `totChol` and `glucose` are sent and stored in **mmol/L** (upper bounds 20 and 40
 reject values entered in mg/dL). They are converted to the dataset's mg/dL only when model
 features are built (`RiskCaseMapper.toFeatures`, factors 38.67 and 18.016).
-Null predictor values represent missing source values. Imputation, one-hot encoding,
-standardization, model export and calibration are NOT implemented. Model inference
-must not be enabled until Python-to-Java parity has been tested.
+Null predictor values represent missing source values; they reach the model as NaN and are
+imputed by the model's own preprocessing.
 
 ## Project architecture
 
 ```text
 controller -> service -> repository -> PostgreSQL
                 |
-                +----> PredictionEngine (currently unavailable)
+                +----> PredictionEngine (ONNX Runtime, models in src/main/resources/models)
 ```
 
 Packages: `controller`, `dto`, `entity`, `repository`, `service`, `mapper`,
@@ -100,21 +99,24 @@ curl -X POST http://localhost:8080/api/cases \
 ```
 
 Successful response: `201 Created` with an `id`; then `GET /api/cases/{id}`.
-Try `POST /api/predictions` with the saved `caseId` and
-`modelKey=logistic-regression-full`: it should respond `503` until a real
-validated model is integrated.
+Then `POST /api/predictions` with the saved `caseId` and
+`modelKey=logistic-regression-full` returns `201` with the probability (0–1).
 
-## To integrate the existing Python Logistic Regression model
+## Models (ONNX)
 
-1. Export the **complete** trained preprocessing+model pipeline to a Java-compatible
-   representation (e.g. verified ONNX, where its steps are supported).
-2. Record the exact feature order, data types, null/imputation policy, category
-   encoding, scaling, model version, and class-probability interpretation.
-3. Implement `ml.engine.PredictionEngine` with the appropriate runtime.
-4. Cross-check prediction probabilities against Python on the same representative
-   test cases **before** accepting and storing inference results.
-5. Ensure model files are immutable/read-only in the deployed container; the backend
-   must remain stateless for Swarm replicas.
+The trained scikit-learn pipelines (preprocessing + logistic regression) are in
+`model-conversion/models`. `model-conversion/convert.py` converts them to ONNX, checks the
+result against scikit-learn (2000 random rows and the example case, tolerance 1e-5) and
+writes `src/main/resources/models/<modelKey>.onnx`. Each file carries its `modelKey`,
+`modelVersion` and feature list as metadata. `OnnxPredictionEngine` loads every file at
+startup and feeds one float input per feature, named like the dataset column.
+
+Re-run the conversion (no local Python needed):
+
+```bash
+docker run --rm -v "$PWD/model-conversion:/work" -v "$PWD/src/main/resources/models:/out" \
+  -w /work python:3.11.16-slim sh -c "pip install -q -r requirements.txt && python convert.py /out"
+```
 
 ## Next phase: Docker Swarm assignment
 
@@ -133,7 +135,7 @@ Cloudflare tunnel, research model and PDF submission are intentionally not inclu
 - Do not commit real patient data, credentials or secrets.
 - Demo endpoints have **no authentication**; do not publish directly to the internet.
 - Synthetic inputs are accepted for educational demonstration only.
-- Model absence is deliberate and exposed as 503; this is not a clinical risk score.
+- The model output is a research estimate, not a clinical risk score.
 - PostgreSQL is available only on the private Compose network.
 
 ## Verification status

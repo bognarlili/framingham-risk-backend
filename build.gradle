@@ -31,6 +31,8 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.10.0'
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+    // Same version as used to verify the converted models (model-conversion/requirements.txt).
+    implementation 'com.microsoft.onnxruntime:onnxruntime:1.32.0'
 
     compileOnly "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
