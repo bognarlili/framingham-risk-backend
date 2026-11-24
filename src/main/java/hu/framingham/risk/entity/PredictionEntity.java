@@ -4,8 +4,11 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -27,6 +30,9 @@ public class PredictionEntity {
     private String modelVersion;
     @Column(nullable = false)
     private Double probability;
+    /** Feature name -> contribution to the log-odds (positive = higher risk). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Double> contributions;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

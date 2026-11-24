@@ -1,4 +1,8 @@
-"""Converts the trained scikit-learn pipelines to ONNX and checks they give the same probabilities.
+"""Converts the trained scikit-learn pipelines to ONNX and checks they give the same results.
+
+Besides the probabilities, each ONNX model gets a "contributions" output: coefficient x
+preprocessed value for every model column (log-odds). The metadata "contributionFeatures"
+names the original feature of each column (the one-hot education columns share one).
 
 Usage: python convert.py <output dir>
 """
@@ -11,6 +15,7 @@ import joblib
 import numpy as np
 import onnxruntime as ort
 import pandas as pd
+from onnx import TensorProto, helper, numpy_helper
 from skl2onnx import to_onnx
 from skl2onnx.common.data_types import FloatTensorType
 from sklearn.linear_model import LogisticRegression
@@ -26,6 +31,7 @@ MODELS = {
 
 # ONNX runs in float32, so allow a small difference from sklearn's float64 result.
 TOLERANCE = 1e-5
+CONTRIBUTION_TOLERANCE = 1e-4  # log-odds values are larger than probabilities
 
 # Plausible value ranges (lab values in mg/dL) for the random comparison rows.
 RANGES = {
@@ -48,11 +54,46 @@ def random_rows(columns, count, seed=42):
     return pd.DataFrame(data, columns=columns)
 
 
-def onnx_probabilities(session, frame):
+def run(session, frame):
     # One [n, 1] float input per feature, named like the dataset column.
     inputs = {name: frame[[name]].to_numpy(np.float32) for name in frame.columns}
-    outputs = dict(zip([o.name for o in session.get_outputs()], session.run(None, inputs)))
-    return outputs["probabilities"][:, 1]
+    return dict(zip([o.name for o in session.get_outputs()], session.run(None, inputs)))
+
+
+def contribution_features(pipeline):
+    """The original feature behind each column the preprocessing outputs."""
+    preprocessing = pipeline.named_steps["preprocessing"]
+    owners = [None] * len(preprocessing.get_feature_names_out())
+    for name, _, columns in preprocessing.transformers_:
+        part = preprocessing.output_indices_[name]
+        width = part.stop - part.start
+        if width == 0:
+            continue
+        if width == len(columns):
+            owners[part] = list(columns)
+        else:  # one-hot: several output columns for a single input feature
+            assert len(columns) == 1, f"{name}: cannot attribute {width} columns to {columns}"
+            owners[part] = [columns[0]] * width
+    return owners
+
+
+def add_contributions(onnx_model, pipeline):
+    """Adds output "contributions" = preprocessed model input x coefficients."""
+    graph = onnx_model.graph
+    classifier = next(node for node in graph.node if node.op_type == "LinearClassifier")
+    coefficients = pipeline.named_steps["model"].coef_[0].astype(np.float32).reshape(1, -1)
+    graph.initializer.append(numpy_helper.from_array(coefficients, "contribution_coefficients"))
+    graph.node.append(helper.make_node("Mul", [classifier.input[0], "contribution_coefficients"],
+                                       ["contributions"]))
+    graph.output.append(helper.make_tensor_value_info("contributions", TensorProto.FLOAT,
+                                                      [None, coefficients.shape[1]]))
+
+
+def check(model_key, name, expected, actual, tolerance):
+    difference = np.abs(expected - actual).max()
+    print(f"{model_key}: {name} max difference on 2000 random rows = {difference:.2e}")
+    if difference > tolerance:
+        sys.exit(f"{model_key}: ONNX {name} differ from sklearn")
 
 
 def convert(model_key, file_name):
@@ -64,18 +105,24 @@ def convert(model_key, file_name):
         initial_types=[(name, FloatTensorType([None, 1])) for name in columns],
         options={LogisticRegression: {"zipmap": False}},  # plain probability tensor
     )
+    add_contributions(onnx_model, pipeline)
     onnx_model.doc_string = f"{model_key} converted from {file_name}"
-    for key, value in {"modelKey": model_key, "modelVersion": Path(file_name).stem,
-                       "features": ",".join(columns)}.items():
+    metadata = {"modelKey": model_key, "modelVersion": Path(file_name).stem,
+                "features": ",".join(columns),
+                "contributionFeatures": ",".join(contribution_features(pipeline))}
+    for key, value in metadata.items():
         entry = onnx_model.metadata_props.add()
         entry.key, entry.value = key, value
 
     session = ort.InferenceSession(onnx_model.SerializeToString(), providers=["CPUExecutionProvider"])
     frame = random_rows(columns, 2000)
-    difference = np.abs(pipeline.predict_proba(frame)[:, 1] - onnx_probabilities(session, frame)).max()
-    print(f"{model_key}: {len(columns)} features, max difference on 2000 random rows = {difference:.2e}")
-    if difference > TOLERANCE:
-        sys.exit(f"{model_key}: ONNX output differs from sklearn")
+    outputs = run(session, frame)
+    print(f"{model_key}: {len(columns)} features")
+    check(model_key, "probabilities", pipeline.predict_proba(frame)[:, 1],
+          outputs["probabilities"][:, 1], TOLERANCE)
+    model = pipeline.named_steps["model"]
+    check(model_key, "contributions", pipeline[:-1].transform(frame) * model.coef_[0],
+          outputs["contributions"], CONTRIBUTION_TOLERANCE)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUTPUT_DIR / f"{model_key}.onnx").write_bytes(onnx_model.SerializeToString())
@@ -84,8 +131,7 @@ def convert(model_key, file_name):
 
 def check_example(session):
     example = json.loads((HERE / "examples" / "lr_teljes_pelda.json").read_text(encoding="utf-8"))
-    frame = pd.DataFrame([example["input"]])
-    probability = float(onnx_probabilities(session, frame)[0])
+    probability = float(run(session, pd.DataFrame([example["input"]]))["probabilities"][0, 1])
     print(f"example: onnx = {probability:.7f}, expected = {example['expected_probability']:.7f}")
     if abs(probability - example["expected_probability"]) > TOLERANCE:
         sys.exit("example: ONNX output differs from the expected probability")

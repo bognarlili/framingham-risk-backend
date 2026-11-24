@@ -19,5 +19,6 @@ public interface PredictionMapper {
     @Mapping(target = "modelKey", source = "modelKey")
     @Mapping(target = "modelVersion", source = "result.modelVersion")
     @Mapping(target = "probability", source = "result.probability")
+    @Mapping(target = "contributions", source = "result.contributions")
     PredictionEntity toEntity(RiskCaseEntity riskCase, String modelKey, PredictionResult result);
 }

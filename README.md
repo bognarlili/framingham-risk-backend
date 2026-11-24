@@ -110,6 +110,9 @@ result against scikit-learn (2000 random rows and the example case, tolerance 1e
 writes `src/main/resources/models/<modelKey>.onnx`. Each file carries its `modelKey`,
 `modelVersion` and feature list as metadata. `OnnxPredictionEngine` loads every file at
 startup and feeds one float input per feature, named like the dataset column.
+Besides `probabilities`, every model has a `contributions` output (coefficient × preprocessed
+value, in log-odds); the engine sums it per input feature (metadata `contributionFeatures`)
+and the result is stored with the prediction (`predictions.contributions`, JSONB).
 
 Re-run the conversion (no local Python needed):
 

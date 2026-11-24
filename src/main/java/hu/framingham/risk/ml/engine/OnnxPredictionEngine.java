@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,11 +31,13 @@ public class OnnxPredictionEngine implements PredictionEngine {
 
     private static final String MODEL_LOCATION = "classpath:models/*.onnx";
     private static final String PROBABILITIES_OUTPUT = "probabilities";
+    private static final String CONTRIBUTIONS_OUTPUT = "contributions";
     private static final int POSITIVE_CLASS = 1;
     /** Features keyed by their JSON (dataset column) name; null values are kept. */
     private static final TypeReference<Map<String, Number>> FEATURE_MAP = new TypeReference<>() {};
 
-    private record LoadedModel(String version, OrtSession session) {}
+    /** {@code contributionFeatures}: the input feature behind each column of the contributions output. */
+    private record LoadedModel(String version, List<String> contributionFeatures, OrtSession session) {}
 
     private final ObjectMapper objectMapper;
     private final OrtEnvironment environment = OrtEnvironment.getEnvironment();
@@ -47,7 +51,8 @@ public class OnnxPredictionEngine implements PredictionEngine {
                 OrtSession session = this.environment.createSession(resource.getContentAsByteArray(), options);
                 Map<String, String> metadata = session.getMetadata().getCustomMetadata();
                 String key = metadata.get("modelKey");
-                this.models.put(key, new LoadedModel(metadata.get("modelVersion"), session));
+                List<String> contributionFeatures = List.of(metadata.get("contributionFeatures").split(","));
+                this.models.put(key, new LoadedModel(metadata.get("modelVersion"), contributionFeatures, session));
                 log.info("Loaded ONNX model {} ({}) with inputs {}", key, metadata.get("modelVersion"),
                          session.getInputNames());
             }
@@ -79,13 +84,24 @@ public class OnnxPredictionEngine implements PredictionEngine {
             }
             try (OrtSession.Result result = model.session().run(inputs)) {
                 float[][] probabilities = (float[][]) result.get(PROBABILITIES_OUTPUT).orElseThrow().getValue();
-                return new PredictionResult(model.version(), probabilities[0][POSITIVE_CLASS]);
+                float[][] columns = (float[][]) result.get(CONTRIBUTIONS_OUTPUT).orElseThrow().getValue();
+                return new PredictionResult(model.version(), probabilities[0][POSITIVE_CLASS],
+                                            contributionsByFeature(model.contributionFeatures(), columns[0]));
             }
         } catch (OrtException exception) {
             throw new IllegalStateException("ONNX inference failed for model " + modelKey, exception);
         } finally {
             inputs.values().forEach(OnnxTensor::close);
         }
+    }
+
+    /** Sums the column contributions per input feature (e.g. the one-hot education columns). */
+    private static Map<String, Double> contributionsByFeature(List<String> features, float[] columns) {
+        Map<String, Double> contributions = new LinkedHashMap<>();
+        for (int i = 0; i < columns.length; i++) {
+            contributions.merge(features.get(i), (double) columns[i], Double::sum);
+        }
+        return contributions;
     }
 
     @PreDestroy
