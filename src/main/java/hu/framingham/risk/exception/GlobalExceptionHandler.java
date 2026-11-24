@@ -9,7 +9,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.Instant;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -41,8 +40,7 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiError> error(HttpStatus status, String message, Map<String, String> fields) {
-        ApiError body = new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message, fields);
         return ResponseEntity.status(status)
-                             .body(body);
+                             .body(ApiError.of(status, message, fields));
     }
 }

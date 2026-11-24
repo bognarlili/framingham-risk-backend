@@ -31,6 +31,7 @@ services:
       DB_URL: jdbc:postgresql://database:5432/framingham
       DB_USERNAME: framingham
       DB_PASSWORD: ${DB_PASSWORD:?Create a .env file with DB_PASSWORD}
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/auth/realms/framingham/protocol/openid-connect/certs
     healthcheck:
       test: [ "CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1" ]
       interval: 15s

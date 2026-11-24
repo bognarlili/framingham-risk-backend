@@ -28,3 +28,12 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+app:
+  security:
+    # Keycloak's signing keys, fetched directly (compose: http://keycloak:8080/...).
+    jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/auth/realms/framingham/protocol/openid-connect/certs}
+    # The issuer's host depends on how the browser reached Keycloak (localhost, tunnel),
+    # so only its path is checked; the signature proves the token came from our Keycloak.
+    issuer-path: /auth/realms/framingham
+    audience: framingham-api
