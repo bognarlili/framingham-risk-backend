@@ -1,28 +1,8 @@
-### Swagger UI: http://localhost:8080/swagger-ui.html
-### Save a synthetic case (totChol and glucose in mmol/L)
-POST http://localhost:8080/api/cases
-Content-Type: application/json
+### Requests through Nginx (http://localhost:8090), like the browser.
+### Swagger UI: http://localhost:8081/swagger-ui.html
 
-{
-  "male": 1,
-  "age": 48,
-  "education": 2,
-  "currentSmoker": 0,
-  "cigsPerDay": 0,
-  "BPMeds": 0,
-  "prevalentStroke": 0,
-  "prevalentHyp": 0,
-  "diabetes": 0,
-  "totChol": 5.4,
-  "sysBP": 125.0,
-  "diaBP": 82.0,
-  "BMI": 27.3,
-  "heartRate": 71.0,
-  "glucose": 5.1
-}
-
-### One call for the frontend: save the case and try the prediction (201; see modelStatus)
-POST http://localhost:8080/api/assessments
+### Risk estimate as a guest: nothing is saved ("saved": false). Lab values in mmol/L.
+POST http://localhost:8090/api/assessments
 Content-Type: application/json
 
 {
@@ -43,14 +23,42 @@ Content-Type: application/json
   "glucose": 5.1
 }
 
-### List records
-GET http://localhost:8080/api/cases
-
-### Health
-GET http://localhost:8080/actuator/health
-
-### POST /api/predictions: replace caseId with an id returned by POST /api/cases
-POST http://localhost:8080/api/predictions
+### Same with the reduced model (ignores totChol and glucose)
+POST http://localhost:8090/api/assessments?modelKey=logistic-regression-reduced
 Content-Type: application/json
 
-{"caseId": "00000000-0000-0000-0000-000000000000", "modelKey": "logistic-regression-full"}
+{
+  "male": 1, "age": 61, "education": 1, "currentSmoker": 1, "cigsPerDay": 20, "BPMeds": 0,
+  "prevalentStroke": 0, "prevalentHyp": 1, "diabetes": 0, "totChol": 6.2, "sysBP": 152.0,
+  "diaBP": 94.0, "BMI": 29.1, "heartRate": 80.0, "glucose": 5.6
+}
+
+### The requests below need a user's access token. Easiest way to get one: log in at
+### http://localhost:8090, open DevTools > Network, and copy the "Authorization: Bearer ..."
+### header of an /api request. It is valid for 5 minutes.
+@token = paste-the-access-token-here
+
+### Estimate as a logged-in user: saved to the journal ("saved": true, "entryId")
+POST http://localhost:8090/api/assessments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "male": 0, "age": 54, "education": 2, "currentSmoker": 0, "cigsPerDay": 0, "BPMeds": 0,
+  "prevalentStroke": 0, "prevalentHyp": 0, "diabetes": 0, "totChol": 6.0, "sysBP": 138.0,
+  "diaBP": 86.0, "BMI": 27.4, "heartRate": 76.0, "glucose": 5.1
+}
+
+### Own journal, newest first
+GET http://localhost:8090/api/journal?size=20
+Authorization: Bearer {{token}}
+
+### Delete an own entry (replace the id with an entryId); another user's entry answers 404
+DELETE http://localhost:8090/api/journal/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+### Without a token the journal answers 401
+GET http://localhost:8090/api/journal
+
+### Health
+GET http://localhost:8081/actuator/health
