@@ -32,6 +32,7 @@ public class PredictionEntity {
     private Double probability;
     /** Feature name -> contribution to the log-odds (positive = higher risk). */
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false)
     private Map<String, Double> contributions;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

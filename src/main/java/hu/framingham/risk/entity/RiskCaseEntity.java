@@ -37,6 +37,9 @@ public class RiskCaseEntity {
     private Double bmi;
     private Double heartRate;
     private Double glucose;
+    /** Keycloak user id (token "sub") of the journal's owner. */
+    @Column(nullable = false, updatable = false)
+    private String ownerId;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

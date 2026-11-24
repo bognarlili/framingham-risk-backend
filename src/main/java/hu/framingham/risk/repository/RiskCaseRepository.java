@@ -2,6 +2,10 @@ package hu.framingham.risk.repository;
 
 import hu.framingham.risk.entity.RiskCaseEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
 import java.util.UUID;
 
-public interface RiskCaseRepository extends JpaRepository<RiskCaseEntity, UUID> {}
+public interface RiskCaseRepository extends JpaRepository<RiskCaseEntity, UUID> {
+    Optional<RiskCaseEntity> findByIdAndOwnerId(UUID id, String ownerId);
+}
