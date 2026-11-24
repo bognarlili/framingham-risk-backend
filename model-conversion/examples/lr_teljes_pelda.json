@@ -1,0 +1,21 @@
+{
+  "modelKey": "logistic-regression-full",
+  "input": {
+    "male": 0,
+    "age": 46,
+    "education": 1.0,
+    "currentSmoker": 0,
+    "cigsPerDay": 0.0,
+    "BPMeds": 0.0,
+    "prevalentStroke": 0,
+    "prevalentHyp": 0,
+    "diabetes": 0,
+    "totChol": 325.0,
+    "sysBP": 119.0,
+    "diaBP": 86.0,
+    "BMI": 35.13,
+    "heartRate": 68.0,
+    "glucose": 64.0
+  },
+  "expected_probability": 0.0652765247732419
+}
