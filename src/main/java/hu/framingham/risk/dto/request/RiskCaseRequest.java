@@ -3,15 +3,17 @@ package hu.framingham.risk.dto.request;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 
-/** Input uses the 15 feature names from the Framingham research. Nullable fields
+/**
+ * Input uses the 15 feature names from the Framingham research. Nullable fields
  * are retained as missing; no imputation or categorical recoding happens here.
  * <p>Units: {@code totChol} and {@code glucose} are in <b>mmol/L</b>. They are stored
  * as received and converted to the dataset's mg/dL only when building model features.
- * The upper bounds reject values that were obviously entered in mg/dL. */
+ * The upper bounds reject values that were obviously entered in mg/dL.
+ */
 public record RiskCaseRequest(
         @Min(0) @Max(1) Integer male,
         @NotNull @Min(0) @Max(120) Integer age,
-        @Positive Integer education,
+        @Min(1) @Max(4) Integer education,
         @Min(0) @Max(1) Integer currentSmoker,
         @PositiveOrZero Integer cigsPerDay,
         @Min(0) @Max(1) @JsonProperty("BPMeds") Integer bpMeds,
